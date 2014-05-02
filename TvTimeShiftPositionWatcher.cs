@@ -52,7 +52,6 @@ namespace TvEngine
       {
         return;
       }
-
       if ((tvEvent.EventType == TvServerEventType.EndTimeShifting || tvEvent.EventType == TvServerEventType.StartZapChannel)
         && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
@@ -60,36 +59,20 @@ namespace TvEngine
         _timer.Dispose();
         ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
         events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
-        Log.Debug("TvTimeShiftPositionWatcher: Timer stopped.");
+        Log.Debug("TsBufferExtractor: Timer stopped.");
       }
 
       if (tvEvent.EventType == TvServerEventType.RecordingStarted && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
-        Log.Debug("TvTimeShiftPositionWatcher: StartRecording, Timer stopped.");
+        CheckRecordingStatus();
+        SnapshotTimeShiftBuffer(); 
+        /*Log.Debug("TvTimeShiftPositionWatcher: StartRecording, Timer stopped.");
 
         _timer.Stop();
         _timer.Dispose();
-        CheckRecordingStatus();
+
         ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
-        events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
-      }
-    }
-
-    private void _timer_Tick(object sender, EventArgs e)
-    {
-      if (_tsBufferExtractorSetup != "A" && _snapshotBufferPosition == -1)
-      {
-        SnapshotTimeShiftBuffer();
-        Log.Debug("TvTimeShiftPositionWatcher: storing the timeshift position on the channel change.");
-      }
-      
-      UpdateTimeShiftReusedStatus();
-      _secondsElapsed++;
-
-      if (_secondsElapsed == 60)
-      {
-        _secondsElapsed = 0;
-        CheckOrUpdateTimeShiftPosition();
+        events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);*/
       }
     }
 
@@ -107,7 +90,7 @@ namespace TvEngine
       _snapshotBufferFile = "";
       _snapshotBufferId = 0;
 
-      Log.Debug("TvTimeShiftPositionWatcher: SetNewChannel(" + idChannel.ToString() + ")");
+      Log.Debug("TsBufferExtractor: SetNewChannel(" + idChannel.ToString() + ")");
       _idChannelToWatch = idChannel;
 
       StartTimer();
@@ -115,6 +98,24 @@ namespace TvEngine
     #endregion
 
     #region Private methods
+
+    private void _timer_Tick(object sender, EventArgs e)
+    {
+      if (_tsBufferExtractorSetup != "A" && _snapshotBufferPosition == -1)
+      {
+        SnapshotTimeShiftBuffer();
+        Log.Debug("TsBufferExtractor: storing the timeshift position on the channel change.");
+      }
+
+      UpdateTimeShiftReusedStatus();
+      _secondsElapsed++;
+
+      if (_secondsElapsed == 60)
+      {
+        _secondsElapsed = 0;
+        CheckOrUpdateTimeShiftPosition();
+      }
+    }
 
     private void StartTimer()
     {
@@ -124,7 +125,6 @@ namespace TvEngine
         _timer.Elapsed += new ElapsedEventHandler(_timer_Tick);
         _timer.AutoReset = true;
         _timer.Interval = 500;
-        //GC.KeepAlive(_timer);
         _timer.Start();
  
         try
@@ -134,10 +134,10 @@ namespace TvEngine
         }
         catch (Exception ex)
         {
-          Log.Error("TvTimeShiftPositionWatcher exception : {0}", ex);
+          Log.Error("TsBufferExtractor exception : {0}", ex);
         }
       }
-      Log.Debug("TvTimeShiftPositionWatcher: started, BufferExtractorSetup = {0}", _tsBufferExtractorSetup);
+      Log.Debug("TsBufferExtractor: started, BufferExtractorSetup = {0}", _tsBufferExtractorSetup);
     }
 
     public void CheckRecordingStatus()
@@ -150,14 +150,14 @@ namespace TvEngine
           if (scheduleId > 0)
           {
             Recording rec = Recording.ActiveRecording(scheduleId);
-            Log.Info("TvTimeShiftPositionWatcher: Detected a started recording. ProgramName: {0}", rec.Title);
+            Log.Info("TsBufferExtractor: Detected a started recording. ProgramName: {0}", rec.Title);
             InitiateBufferFilesCopyProcess(rec);
           }
         }
       }
       catch (Exception ex)
       {
-        Log.Error("TvTimeshiftPositionWatcher.CheckRecordingStatus exception : {0}", ex);
+        Log.Error("TsBufferExtractor.CheckRecordingStatus exception : {0}", ex);
       }
     }
 
@@ -165,7 +165,7 @@ namespace TvEngine
     {
       if (_tsBufferExtractorSetup == "A" && _snapshotBufferPosition == -2)
       {
-        Log.Info("TvTimeshiftPositionWatcher: there is no program information, skip the ts buffer copy.");
+        Log.Info("TsBufferExtractor: there is no program information, skip the ts buffer copy.");
         return;
       }
 
@@ -187,21 +187,21 @@ namespace TvEngine
         if (_snapshotBufferPosition == -2)
         {
           _snapshotBufferId = bufferId + 1;
-          Log.Debug("TvTimeshiftPositionWatcher: snapshotBufferPosition was overwritten, the new _snapshotBufferId {0}", _snapshotBufferId);
+          Log.Debug("TsBufferExtractor: snapshotBufferPosition was overwritten, the new _snapshotBufferId {0}", _snapshotBufferId);
         }
 
-        Log.Info("TvTimeshiftPositionWatcher: current TS Position {0}, TS bufferId {1}, snapshotBufferId {2}, recording file {3}",
+        Log.Info("TsBufferExtractor: current TS Position {0}, TS bufferId {1}, snapshotBufferId {2}, recording file {3}",
           currentPosition, bufferId, _snapshotBufferId, recordingFilename);
 
         if (_snapshotBufferId < bufferId)
         {
-          Log.Debug("TvTimeshiftPositionWatcher1: snapshotBufferId {0}, bufferId {1}", _snapshotBufferId, bufferId);
+          Log.Debug("TsBufferExtractor: snapshotBufferId {0}, bufferId {1}", _snapshotBufferId, bufferId);
           string nextFile;
 
           for (long i = _snapshotBufferId; i < bufferId; i++)
           {
             nextFile = RemoteControl.Instance.TimeShiftFileName(ref u) + i + ".ts";
-            Log.Debug("TvTimeshiftPositionWatcher2: nextFile {0}", nextFile);
+            Log.Debug("TsBufferExtractor: nextFile {0}", nextFile);
             itemlist.Add(new[] { nextFile, string.Format("{0}", maximumFileSize), recordingFilename });
           }
         }
@@ -213,7 +213,7 @@ namespace TvEngine
             for (long i = _snapshotBufferId; i <= maxFiles; i++)
             {
               nextFile = RemoteControl.Instance.TimeShiftFileName(ref u) + i + ".ts";
-              Log.Debug("TvTimeshiftPositionWatcher3: nextFile {0}", nextFile);
+              Log.Debug("TsBufferExtractor: nextFile {0}", nextFile);
               itemlist.Add(new[] { nextFile, string.Format("{0}", maximumFileSize), recordingFilename });
             }
 
@@ -222,14 +222,14 @@ namespace TvEngine
               for (long i = 1; i < _bufferId; i++)
               {
                 nextFile = RemoteControl.Instance.TimeShiftFileName(ref u) + i + ".ts";
-                Log.Debug("TvTimeshiftPositionWatcher4: nextFile {0}", nextFile);
+                Log.Debug("TsBufferExtractor: nextFile {0}", nextFile);
                 itemlist.Add(new[] { nextFile, string.Format("{0}", maximumFileSize), recordingFilename });
               }
             }
           }
         }
         itemlist.Add(new[] { currentFile, string.Format("{0}", currentPosition), recordingFilename });
-        Log.Debug("TvTimeshiftPositionWatcher: currentFile {0}", currentFile);
+        Log.Debug("TsBufferExtractor: currentFile {0}", currentFile);
 
         try
         {
@@ -244,7 +244,7 @@ namespace TvEngine
         }
         catch (Exception ex)
         {
-          Log.Error("TvTimeshiftPositionWatcher.CopyTimeShiftFile exception : {0}", ex);
+          Log.Error("TsBufferExtractor.CopyTimeShiftFile exception : {0}", ex);
         }
       }
       _snapshotBufferPosition = -1;
@@ -254,34 +254,34 @@ namespace TvEngine
 
     private void SnapshotTimeShiftBuffer()
     {
-      Log.Debug("TvTimeShiftPositionWatcher.SnapshotTimeShiftBuffer: Snapshotting timeshift buffer.");
+      Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshotting timeshift buffer.");
       IUser u = _tvEvent.Card.User;
       if (u == null)
       {
-        Log.Error("TvTimeShiftPositionWatcher.SnapshotTimeShiftBuffer: Snapshot buffer failed. TvHome.Card.User==null");
+        Log.Error("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshot buffer failed. TvHome.Card.User==null");
         return;
       }
 
       if (_idChannelToWatch == -1 || !_tvEvent.Card.IsTimeShifting)
       {
-        Log.Debug("TvTimeShiftPositionWatcher.SnapshotTimeShiftBuffer: not timeshifting");
+        Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: not timeshifting");
         return;
       }
 
       if (!RemoteControl.Instance.TimeShiftGetCurrentFilePosition(ref u, ref _snapshotBufferPosition, ref _snapshotBufferId))
       {
-        Log.Error("TvTimeShiftPositionWatcher.SnapshotTimeShiftBuffer: TimeShiftGetCurrentFilePosition failed.");
+        Log.Error("TsBufferExtractor.SnapshotTimeShiftBuffer: TimeShiftGetCurrentFilePosition failed.");
         return;
       }
       _snapshotBufferFile = RemoteControl.Instance.TimeShiftFileName(ref u) + _snapshotBufferId.ToString() + ".ts";
-      Log.Info("TvTimeShiftPositionWatcher.SnapshotTimeShiftBuffer: Snapshot done - position: {0}, filename: {1}", _snapshotBufferPosition, _snapshotBufferFile);
+      Log.Info("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshot done - position: {0}, filename: {1}", _snapshotBufferPosition, _snapshotBufferFile);
     }
 
     private void CheckOrUpdateTimeShiftPosition()
     {
       if (_idChannelToWatch == -1 || !_tvEvent.Card.IsTimeShifting)
       {
-        Log.Debug("CheckOrUpdateTimeShiftPosition: not timeshifting");
+        Log.Debug("TsBufferExtractor: not timeshifting");
         return;
       }
 
@@ -289,7 +289,7 @@ namespace TvEngine
 
       if (chan == null || chan.CurrentProgram == null)
       {
-        Log.Debug("CheckOrUpdateTimeShiftPosition: no EPG data, returning");
+        Log.Debug("TsBufferExtractor: no EPG data, returning");
         return;
       }
 
@@ -303,18 +303,18 @@ namespace TvEngine
           DateTime dtProgEnd = chan.CurrentProgram.EndTime;
           dtProgEnd = new DateTime(dtProgEnd.Year, dtProgEnd.Month, dtProgEnd.Day, dtProgEnd.Hour, dtProgEnd.Minute, 0);
 
-          Log.Debug("TvTimeShiftPositionWatcher: Ch: ({5}) CurrentProgram ({0}) Checking {1} == {2}, _bufferId {3}, _snapshotBufferId {4}", chan.CurrentProgram.Title,
+          Log.Debug("TsBufferExtractor: Ch: ({5}) CurrentProgram ({0}) Checking {1} == {2}, _bufferId {3}, _snapshotBufferId {4}", chan.CurrentProgram.Title,
             current.ToString("dd.MM.yy HH:mm"), dtProgEnd.ToString("dd.MM.yy HH:mm"), _bufferId, _snapshotBufferId, chan.DisplayName);
 
           if (current == dtProgEnd)
           {
-            Log.Debug("TvTimeShiftPositionWatcher: Next program starts within the configured Pre-Rec interval. Current program: ({0}) ending: {1}", chan.CurrentProgram.Title, chan.CurrentProgram.EndTime.ToString());
+            Log.Debug("TsBufferExtractor: Next program starts within the configured Pre-Rec interval. Current program: ({0}) ending: {1}", chan.CurrentProgram.Title, chan.CurrentProgram.EndTime.ToString());
             SnapshotTimeShiftBuffer();
           }
         }
         catch (Exception ex)
         {
-          Log.Error("TvTimeshiftPositionWatcher.CheckOrUpdateTimeShiftPosition exception : {0}", ex);
+          Log.Error("TsBufferExtractor.CheckOrUpdateTimeShiftPosition exception : {0}", ex);
         }
       }
     }
@@ -329,7 +329,7 @@ namespace TvEngine
       {
         _snapshotBufferPosition = -2; //magic number
         _snapshotBufferId = 0;
-        Log.Info("TvTimeShiftPositionWatcher: snapshot buffer Reused.");
+        Log.Info("TsBufferExtractor: snapshot buffer Reused.");
       }
 
     }
@@ -352,7 +352,7 @@ namespace TvEngine
       }
       catch
       {
-        Log.Error("TvTimeShiftPositionWatcher: error in GetTimeShiftPosition");
+        Log.Error("TsBufferExtractor: error in GetTimeShiftPosition");
       }
 
       return 0;

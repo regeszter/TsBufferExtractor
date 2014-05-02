@@ -35,7 +35,7 @@ namespace TvEngine
       }
       catch (Exception ex)
       {
-        Log.Error("CopyTimeShiftFile exception: {0}", ex);
+        Log.Error("TsCopier exception: {0}", ex);
         return;
       }
     }
@@ -51,7 +51,6 @@ namespace TvEngine
 
       try
       {
-        Log.Debug("TsCopier: Count: {0}", _itemlist.Count);
         Log.Info("TsCopier: targetTs {0}", targetTs);
 
         using (FileStream writer = new FileStream(targetTs, FileMode.CreateNew, FileAccess.Write))
@@ -66,8 +65,8 @@ namespace TvEngine
               {
                 using (FileStream reader = new FileStream(bufferListObject[0], FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                  Log.Info("bufferListObject TSfilename {0}", bufferListObject[0]);
-                  Log.Debug("bufferListObject filesize {0}", bufferListObject[1]);
+                  Log.Info("TsCopier: TSfilename {0}", bufferListObject[0]);
+                  Log.Debug("TsCopier: TSfilename filesize {0}", bufferListObject[1]);
 
                   if (!foundHeader)
                   {
@@ -83,7 +82,7 @@ namespace TvEngine
                       {
                         if (prebuf[x] == 0x47 && prebuf[x + 188] == 0x47 && prebuf[x + 376] == 0x47)
                         {
-                          Log.Debug("TS packet header found at {0} pos in {1}.", x, bufferListObject[0]);
+                          Log.Debug("TsCopier: TS packet header found at {0} pos in {1}.", x, bufferListObject[0]);
                           position = x;
                           foundHeader = true;
                           break;
@@ -96,7 +95,7 @@ namespace TvEngine
 
                     if (!foundHeader)
                     {
-                      Log.Debug("TS packet header not found in {0}.", bufferListObject[0]);
+                      Log.Debug("TsCopier: TS packet header not found in {0}.", bufferListObject[0]);
                       break;
                     }
                   }
@@ -135,7 +134,7 @@ namespace TvEngine
 
       try
       {
-        Log.Debug("TsCopier Creating Recording entry for {0}", targetTs);
+        Log.Debug("TsCopier: Creating Recording entry for {0}", targetTs);
 
         RecordingDetail recDetail = new RecordingDetail(newSchedule, newSchedule.ReferencedChannel(), DateTime.Now, false);
 
@@ -150,7 +149,7 @@ namespace TvEngine
         recDetail.Recording.Persist();
 
         IUser user = recDetail.User;
-        Log.Info("TsCopier Finished the job.");
+        Log.Info("TsCopier: Finished the job.");
 
         TsBufferExtractor.Controller.Fire(this, new TvServerEventArgs(TvServerEventType.RecordingEnded, new VirtualCard(user), (User)user,
                                                  recDetail.Schedule, recDetail.Recording));
