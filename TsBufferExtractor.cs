@@ -69,7 +69,7 @@ namespace TvEngine
     /// </summary>
     public string Version
     {
-      get { return  "0.2.0.0"; }
+      get { return  "0.3.0.0"; }
     }
 
     public SetupTv.SectionSettings Setup

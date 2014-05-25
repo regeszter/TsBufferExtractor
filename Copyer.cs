@@ -149,10 +149,25 @@ namespace TvEngine
         recDetail.Recording.Persist();
 
         IUser user = recDetail.User;
-        Log.Info("TsCopier: Finished the job.");
 
         TsBufferExtractor.Controller.Fire(this, new TvServerEventArgs(TvServerEventType.RecordingEnded, new VirtualCard(user), (User)user,
                                                  recDetail.Schedule, recDetail.Recording));
+
+        MatroskaTagInfo info = new MatroskaTagInfo();
+        info.title = rec.Title + " (from buffer)";
+        info.description = recDetail.Program.Description;
+        info.genre = recDetail.Program.Genre;
+
+        info.channelName = recDetail.Schedule.ReferencedChannel().DisplayName;
+        info.episodeName = recDetail.Program.EpisodeName;
+        info.seriesNum = recDetail.Program.SeriesNum;
+        info.episodeNum = recDetail.Program.EpisodeNum;
+        info.episodePart = recDetail.Program.EpisodePart;
+        info.startTime = rec.StartTime;
+        info.endTime = DateTime.Now;
+
+        MatroskaTagHandler.WriteTag(System.IO.Path.ChangeExtension(targetTs, ".xml"), info);
+        Log.Info("TsCopier: Finished the job.");
       }
       catch (Exception ex)
       {

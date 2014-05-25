@@ -130,7 +130,7 @@ namespace SetupTv.Sections
       this.groupBox1.Size = new System.Drawing.Size(441, 99);
       this.groupBox1.TabIndex = 3;
       this.groupBox1.TabStop = false;
-      this.groupBox1.Text = "Save the puffer";
+      this.groupBox1.Text = "Save the buffer";
       // 
       // TsBufferExtractorSetup
       // 

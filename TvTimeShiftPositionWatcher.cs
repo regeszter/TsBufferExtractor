@@ -52,6 +52,7 @@ namespace TvEngine
       {
         return;
       }
+
       if ((tvEvent.EventType == TvServerEventType.EndTimeShifting || tvEvent.EventType == TvServerEventType.StartZapChannel)
         && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
@@ -66,13 +67,6 @@ namespace TvEngine
       {
         CheckRecordingStatus();
         SnapshotTimeShiftBuffer(); 
-        /*Log.Debug("TvTimeShiftPositionWatcher: StartRecording, Timer stopped.");
-
-        _timer.Stop();
-        _timer.Dispose();
-
-        ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
-        events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);*/
       }
     }
 
@@ -270,7 +264,7 @@ namespace TvEngine
 
       if (!RemoteControl.Instance.TimeShiftGetCurrentFilePosition(ref u, ref _snapshotBufferPosition, ref _snapshotBufferId))
       {
-        Log.Error("TsBufferExtractor.SnapshotTimeShiftBuffer: TimeShiftGetCurrentFilePosition failed.");
+        Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: TimeShiftGetCurrentFilePosition failed.");
         return;
       }
       _snapshotBufferFile = RemoteControl.Instance.TimeShiftFileName(ref u) + _snapshotBufferId.ToString() + ".ts";

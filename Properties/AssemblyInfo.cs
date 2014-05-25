@@ -31,4 +31,4 @@ using MediaPortal.Common.Utils;
 [assembly: CompatibleVersion("Own")]
 [assembly: UsesSubsystem("TVE")]
 [assembly: AssemblyVersionAttribute("1.7.0.0")]
-[assembly: AssemblyFileVersionAttribute("0.2.0.0")]
+[assembly: AssemblyFileVersionAttribute("0.3.0.0")]
