@@ -50,12 +50,16 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Remoting" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="TsBufferExtractor.Interface">
+      <HintPath>TsBufferExtractor.Interface\bin\Release\TsBufferExtractor.Interface.dll</HintPath>
+    </Reference>
     <Reference Include="TvBusinessLayer">
       <HintPath>..\..\..\..\..\..\..\Program Files\Team MediaPortal\MediaPortal TV Server\TvBusinessLayer.dll</HintPath>
     </Reference>
@@ -73,6 +77,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TsBufferExtractorServer.cs" />
     <Compile Include="TvTimeShiftPositionWatcher.cs" />
     <Compile Include="Copyer.cs" />
     <Compile Include="TsBufferExtractor.cs" />

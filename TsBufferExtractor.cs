@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Runtime.Remoting;
+using System.Runtime.Remoting.Channels;
+using System.Runtime.Remoting.Channels.Http;
 using TvControl;
 using TvDatabase;
 using TvEngine.Interfaces;
@@ -6,12 +9,15 @@ using TvLibrary.Interfaces;
 using TvLibrary.Log;
 using TvEngine.Events;
 using TvService;
+using TvEngine;
+using TsBufferExtractor.Interface;
 
-namespace TvEngine
+namespace TsBufferExtractor
 {
   public class TsBufferExtractor : ITvServerPlugin
   {
     static public TvService.TVController Controller;
+    HttpChannel httpChannel = new HttpChannel(9998);
 
     #region Constructor
 
@@ -32,6 +38,26 @@ namespace TvEngine
       {
         events.OnTvServerEvent += new TvServerEventHandler(events_OnTvServerEvent);
       }
+
+      try
+      {
+        ChannelServices.RegisterChannel(httpChannel);
+      }
+      catch (Exception ex)
+      {
+        Log.Error("TsBufferExtractor exception: {0}", ex);
+      }
+
+      try
+      {
+        RemotingConfiguration.RegisterWellKnownServiceType(typeof(TsBufferExtractorServer), "TsBufferExtractorServer",
+         WellKnownObjectMode.SingleCall);
+      }
+      catch (Exception ex)
+      {
+        Log.Error("TsBufferExtractor exception: {0}", ex);
+      }
+      Log.Debug("TsBufferExtractor Started");
     }
 
     /// <summary>
@@ -41,6 +67,7 @@ namespace TvEngine
     {
       ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
       events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
+      ChannelServices.UnregisterChannel(httpChannel);
     }
 
     public string Author
@@ -69,13 +96,15 @@ namespace TvEngine
     /// </summary>
     public string Version
     {
-      get { return  "0.3.0.0"; }
+      get { return  "0.4.0.0"; }
     }
 
     public SetupTv.SectionSettings Setup
     {
       get { return new SetupTv.Sections.TsBufferExtractorSetup(); }
     }
+
+
 
     /// <summary>
     /// Handles the OnTvServerEvent event fired by the server.

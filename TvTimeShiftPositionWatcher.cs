@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using System.IO;
 using TvControl;
@@ -13,7 +14,7 @@ using TvEngine.Events;
 using System.Timers;
 
 
-namespace TvEngine
+namespace TsBufferExtractor
 {
   public class TvTimeShiftPositionWatcher
   {
@@ -24,12 +25,13 @@ namespace TvEngine
     private System.Timers.Timer _timer = null;
     private int _idChannelToWatch = -1;
     private Int64 _snapshotBufferPosition = -1;
-    private string _snapshotBufferFile = "";
+    private string _snapshotBufferFile = string.Empty;
     private decimal _preRecordInterval = -1;
     private int _secondsElapsed = 0;
     private TvServerEventArgs _tvEvent;
     private string _tsBufferExtractorSetup;
-
+    private static string _isManual = string.Empty; //empty if no client
+    
     #endregion
 
     public TvTimeShiftPositionWatcher(TvServerEventArgs eventArgs)
@@ -52,7 +54,6 @@ namespace TvEngine
       {
         return;
       }
-
       if ((tvEvent.EventType == TvServerEventType.EndTimeShifting || tvEvent.EventType == TvServerEventType.StartZapChannel)
         && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
@@ -65,14 +66,40 @@ namespace TvEngine
 
       if (tvEvent.EventType == TvServerEventType.RecordingStarted && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
-        CheckRecordingStatus();
-        SnapshotTimeShiftBuffer(); 
+        int i = 0;
+        while (i < 50)
+        {
+          Log.Debug("TsBufferExtractor: waiting for the signal.");
+          if (_isManual == _tvEvent.User.Name)
+          {
+            break;
+          }
+
+          Thread.Sleep(100);
+          i++;
+        }
+
+        if (_isManual == _tvEvent.User.Name)
+        {
+          _isManual = string.Empty;
+          CheckRecordingStatus();
+          SnapshotTimeShiftBuffer();
+        }
+        else
+        {
+          Log.Debug("TsBufferExtractor: not a manual recording or timeout.");
+        }
       }
     }
 
     #endregion
 
     #region Public methods
+
+    public static string IsManual
+    {
+      set {_isManual = value;}
+    }
 
     public void SetNewChannel(int idChannel)
     {
@@ -81,7 +108,7 @@ namespace TvEngine
       _tsBufferExtractorSetup = layer.GetSetting("TsBufferExtractorSetup", "A").Value;
       _preRecordInterval = Decimal.Parse(layer.GetSetting("preRecordInterval", "5").Value);
       _snapshotBufferPosition = -1;
-      _snapshotBufferFile = "";
+      _snapshotBufferFile = string.Empty;
       _snapshotBufferId = 0;
 
       Log.Debug("TsBufferExtractor: SetNewChannel(" + idChannel.ToString() + ")");
@@ -242,7 +269,7 @@ namespace TvEngine
         }
       }
       _snapshotBufferPosition = -1;
-      _snapshotBufferFile = "";
+      _snapshotBufferFile = string.Empty;
       _snapshotBufferId = 0;
     }
 

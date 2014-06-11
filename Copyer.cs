@@ -14,7 +14,7 @@ using TvEngine.Events;
 using TvService;
 
 
-namespace TvEngine
+namespace TsBufferExtractor
 {
   public class Copyer
   {
@@ -112,6 +112,7 @@ namespace TvEngine
 
                     writer.Write(buf, 0, bytesRead);
                     bytesRead = reader.Read(buf, 0, 1024 * 1024);
+                    Thread.Sleep(100);
                   }
                   reader.Close();
                 }
