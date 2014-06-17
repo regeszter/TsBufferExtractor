@@ -17,7 +17,7 @@ namespace TsBufferExtractor
   public class TsBufferExtractor : ITvServerPlugin
   {
     static public TvService.TVController Controller;
-    HttpChannel httpChannel = new HttpChannel(9998);
+    HttpChannel httpChannel;
 
     #region Constructor
 
@@ -41,7 +41,8 @@ namespace TsBufferExtractor
 
       try
       {
-        ChannelServices.RegisterChannel(httpChannel);
+        httpChannel = new HttpChannel(9998);
+        ChannelServices.RegisterChannel(httpChannel, false);
       }
       catch (Exception ex)
       {
