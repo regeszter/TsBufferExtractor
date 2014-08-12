@@ -46,7 +46,7 @@ namespace TsBufferExtractor
       }
       catch (Exception ex)
       {
-        Log.Error("TsBufferExtractor exception: {0}", ex);
+        //Log.Error("TsBufferExtractor exception: {0}", ex);
       }
 
       try
@@ -68,7 +68,14 @@ namespace TsBufferExtractor
     {
       ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
       events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
-      ChannelServices.UnregisterChannel(httpChannel);
+      try
+      {
+        ChannelServices.UnregisterChannel(httpChannel);
+      }
+      catch (Exception ex)
+      {
+        //Log.Error("TsBufferExtractor exception: {0}", ex);
+      }
     }
 
     public string Author
@@ -97,7 +104,7 @@ namespace TsBufferExtractor
     /// </summary>
     public string Version
     {
-      get { return  "0.4.0.0"; }
+      get { return  "0.4.0.1"; }
     }
 
     public SetupTv.SectionSettings Setup

@@ -31,6 +31,7 @@ namespace TsBufferExtractor
     private TvServerEventArgs _tvEvent;
     private string _tsBufferExtractorSetup;
     private static string _isManual = string.Empty; //empty if no client
+    int _errors = 0;
     
     #endregion
 
@@ -55,13 +56,9 @@ namespace TsBufferExtractor
         return;
       }
       if ((tvEvent.EventType == TvServerEventType.EndTimeShifting || tvEvent.EventType == TvServerEventType.StartZapChannel)
-        && _idChannelToWatch == tvEvent.Card.IdChannel)
+        && _idChannelToWatch == tvEvent.Card.IdChannel && _tvEvent.User.Name == tvEvent.User.Name)
       {
-        _timer.Stop();
-        _timer.Dispose();
-        ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
-        events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
-        Log.Debug("TsBufferExtractor: Timer stopped.");
+        StopTimer();
       }
 
       if (tvEvent.EventType == TvServerEventType.RecordingStarted && _idChannelToWatch == tvEvent.Card.IdChannel)
@@ -87,7 +84,7 @@ namespace TsBufferExtractor
         }
         else
         {
-          Log.Debug("TsBufferExtractor: not a manual recording or timeout.");
+          Log.Debug("TsBufferExtractor: it is not a manual recording or timeout.");
         }
       }
     }
@@ -111,7 +108,7 @@ namespace TsBufferExtractor
       _snapshotBufferFile = string.Empty;
       _snapshotBufferId = 0;
 
-      Log.Debug("TsBufferExtractor: SetNewChannel(" + idChannel.ToString() + ")");
+      Log.Debug("TsBufferExtractor: SetNewChannel({0})", idChannel);
       _idChannelToWatch = idChannel;
 
       StartTimer();
@@ -120,8 +117,22 @@ namespace TsBufferExtractor
 
     #region Private methods
 
+    private void StopTimer()
+    {
+      _timer.Stop();
+      _timer.Dispose();
+      ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
+      events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
+      Log.Debug("TsBufferExtractor: Timer stopped on {0}, errors = {1}", _tvEvent.User.Name, _errors);
+    }
+
     private void _timer_Tick(object sender, EventArgs e)
     {
+      if (_errors >= 10)
+      {
+        StopTimer();
+      }
+      
       if (_tsBufferExtractorSetup != "A" && _snapshotBufferPosition == -1)
       {
         SnapshotTimeShiftBuffer();
@@ -158,7 +169,7 @@ namespace TsBufferExtractor
           Log.Error("TsBufferExtractor exception : {0}", ex);
         }
       }
-      Log.Debug("TsBufferExtractor: started, BufferExtractorSetup = {0}", _tsBufferExtractorSetup);
+      Log.Debug("TsBufferExtractor: started on {1}, BufferExtractorSetup = {0}", _tsBufferExtractorSetup, _tvEvent.User.Name);
     }
 
     public void CheckRecordingStatus()
@@ -171,7 +182,7 @@ namespace TsBufferExtractor
           if (scheduleId > 0)
           {
             Recording rec = Recording.ActiveRecording(scheduleId);
-            Log.Info("TsBufferExtractor: Detected a started recording. ProgramName: {0}", rec.Title);
+            Log.Info("TsBufferExtractor: Detected a started recording on {0}, ProgramName: {1}", _tvEvent.User.Name, rec.Title);
             InitiateBufferFilesCopyProcess(rec);
           }
         }
@@ -196,8 +207,8 @@ namespace TsBufferExtractor
       Int64 currentPosition = -1;
 
       var layer = new TvBusinessLayer();
-      Int64 maximumFileSize = Int64.Parse(layer.GetSetting("timeshiftMaxFileSize", "20").Value) * 1000 * 1000;
-      int maxFiles = Convert.ToInt16(layer.GetSetting("timeshiftMaxFiles", "20").Value);
+      Int64 maximumFileSize = Int64.Parse(layer.GetSetting("timeshiftMaxFileSize", "30").Value) * 1000 * 1000;
+      int maxFiles = Convert.ToInt16(layer.GetSetting("timeshiftMaxFiles", "30").Value);
 
       List<string[]> itemlist = new List<string[]>();
 
@@ -275,23 +286,27 @@ namespace TsBufferExtractor
 
     private void SnapshotTimeShiftBuffer()
     {
-      Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshotting timeshift buffer.");
       IUser u = _tvEvent.Card.User;
       if (u == null)
       {
         Log.Error("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshot buffer failed. TvHome.Card.User==null");
+        _errors++;
         return;
       }
+
+      Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: Snapshotting timeshift buffer. User: {0}", _tvEvent.User.Name);
 
       if (_idChannelToWatch == -1 || !_tvEvent.Card.IsTimeShifting)
       {
         Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: not timeshifting");
+        _errors++;
         return;
       }
 
       if (!RemoteControl.Instance.TimeShiftGetCurrentFilePosition(ref u, ref _snapshotBufferPosition, ref _snapshotBufferId))
       {
         Log.Debug("TsBufferExtractor.SnapshotTimeShiftBuffer: TimeShiftGetCurrentFilePosition failed.");
+        _errors++;
         return;
       }
       _snapshotBufferFile = RemoteControl.Instance.TimeShiftFileName(ref u) + _snapshotBufferId.ToString() + ".ts";
@@ -303,6 +318,7 @@ namespace TsBufferExtractor
       if (_idChannelToWatch == -1 || !_tvEvent.Card.IsTimeShifting)
       {
         Log.Debug("TsBufferExtractor: not timeshifting");
+        _errors++;
         return;
       }
 
@@ -324,8 +340,8 @@ namespace TsBufferExtractor
           DateTime dtProgEnd = chan.CurrentProgram.EndTime;
           dtProgEnd = new DateTime(dtProgEnd.Year, dtProgEnd.Month, dtProgEnd.Day, dtProgEnd.Hour, dtProgEnd.Minute, 0);
 
-          Log.Debug("TsBufferExtractor: Ch: ({5}) CurrentProgram ({0}) Checking {1} == {2}, _bufferId {3}, _snapshotBufferId {4}", chan.CurrentProgram.Title,
-            current.ToString("dd.MM.yy HH:mm"), dtProgEnd.ToString("dd.MM.yy HH:mm"), _bufferId, _snapshotBufferId, chan.DisplayName);
+          Log.Debug("TsBufferExtractor: Ch: ({5}) CurrentProgram ({0}) Checking {1} == {2}, _bufferId {3}, _snapshotBufferId {4}, user: {6}", chan.CurrentProgram.Title,
+            current.ToString("dd.MM.yy HH:mm"), dtProgEnd.ToString("dd.MM.yy HH:mm"), _bufferId, _snapshotBufferId, chan.DisplayName, _tvEvent.User.Name);
 
           if (current == dtProgEnd)
           {
@@ -350,7 +366,7 @@ namespace TsBufferExtractor
       {
         _snapshotBufferPosition = -2; //magic number
         _snapshotBufferId = 0;
-        Log.Info("TsBufferExtractor: snapshot buffer Reused.");
+        Log.Info("TsBufferExtractor: snapshot buffer is reused on {0}", _tvEvent.User.Name);
       }
 
     }
