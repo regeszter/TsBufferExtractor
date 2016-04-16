@@ -38,6 +38,7 @@ namespace TsBufferExtractor
     public TvTimeShiftPositionWatcher(TvServerEventArgs eventArgs)
     {
       _tvEvent = eventArgs;
+      SetNewChannel(_tvEvent.Card.IdChannel);
     }
 
     #region Event handlers
@@ -64,7 +65,7 @@ namespace TsBufferExtractor
       if (tvEvent.EventType == TvServerEventType.RecordingStarted && _idChannelToWatch == tvEvent.Card.IdChannel)
       {
         int i = 0;
-        while (i < 50)
+        while (i < 100)
         {
           Log.Debug("TsBufferExtractor: waiting for the signal.");
           if (_isManual == _tvEvent.User.Name)
@@ -100,18 +101,24 @@ namespace TsBufferExtractor
 
     public void SetNewChannel(int idChannel)
     {
+      try
+      {
+        TvBusinessLayer layer = new TvBusinessLayer();
+        _tsBufferExtractorSetup = layer.GetSetting("TsBufferExtractorSetup", "A").Value;
+        _preRecordInterval = Decimal.Parse(layer.GetSetting("preRecordInterval", "5").Value);
+        _snapshotBufferPosition = -1;
+        _snapshotBufferFile = string.Empty;
+        _snapshotBufferId = 0;
 
-      TvBusinessLayer layer = new TvBusinessLayer();
-      _tsBufferExtractorSetup = layer.GetSetting("TsBufferExtractorSetup", "A").Value;
-      _preRecordInterval = Decimal.Parse(layer.GetSetting("preRecordInterval", "5").Value);
-      _snapshotBufferPosition = -1;
-      _snapshotBufferFile = string.Empty;
-      _snapshotBufferId = 0;
+        Log.Debug("TsBufferExtractor: SetNewChannel({0})", idChannel);
+        _idChannelToWatch = idChannel;
 
-      Log.Debug("TsBufferExtractor: SetNewChannel({0})", idChannel);
-      _idChannelToWatch = idChannel;
-
-      StartTimer();
+        StartTimer();
+      }
+      catch (Exception ex)
+      {
+        Log.Error("TsBufferExtractor: Exception {0}", ex.Message);
+      }
     }
     #endregion
 
@@ -151,6 +158,14 @@ namespace TsBufferExtractor
 
     private void StartTimer()
     {
+      Channel chan = Channel.Retrieve(_idChannelToWatch);
+
+      if (chan != null && chan.IsRadio)
+      {
+        Log.Debug("TsBufferExtractor: IsRadio = True");
+        return;
+      }
+
       if (_timer == null)
       {
         _timer = new System.Timers.Timer();
@@ -265,14 +280,9 @@ namespace TsBufferExtractor
 
         try
         {
-          Schedule newSchedule = new Schedule(rec.IdChannel, rec.Title, rec.StartTime, DateTime.Now);
-          newSchedule.PreRecordInterval = 0;
-          newSchedule.PostRecordInterval = 0;
-          newSchedule.Persist();
-
           Copyer Copy = new Copyer();
 
-          Copy.CopyTimeShiftFile(itemlist, rec, newSchedule);
+          Copy.CopyTimeShiftFile(itemlist);
         }
         catch (Exception ex)
         {

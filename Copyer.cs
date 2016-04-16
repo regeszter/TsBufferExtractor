@@ -18,20 +18,51 @@ namespace TsBufferExtractor
 {
   public class Copyer
   {
-    public void CopyTimeShiftFile(object itemlist, Recording rec, Schedule newSchedule)
+    string _filename;
+    bool _startMerge = false;
+
+    public Copyer()
+    {
+      ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
+      events.OnTvServerEvent += new TvServerEventHandler(events_OnTvServerEvent);
+    }
+
+    #region Event handlers
+
+    /// <summary>
+    /// Handles the OnTvServerEvent event fired by the server.
+    /// </summary>
+    /// <param name="sender">The source of the event.</param>
+    /// <param name="eventArgs">The <see cref="System.EventArgs"/> the event data.</param>
+    void events_OnTvServerEvent(object sender, EventArgs eventArgs)
+    {
+      TvServerEventArgs tvEvent = (TvServerEventArgs)eventArgs;
+
+      if (eventArgs == null || tvEvent == null)
+      {
+        return;
+      }
+
+      if (tvEvent.EventType == TvServerEventType.RecordingEnded && _filename == tvEvent.Recording.FileName)
+      {
+        _startMerge = true;
+
+        ITvServerEvent events = GlobalServiceProvider.Instance.Get<ITvServerEvent>();
+        events.OnTvServerEvent -= new TvServerEventHandler(events_OnTvServerEvent);
+      }
+    }
+
+    #endregion
+    
+    public void CopyTimeShiftFile(object itemlist)
     {
       try
       {
-        ThreadStart ts = delegate()
-        {
-          TsCopier(itemlist, rec, newSchedule);
-        };
-
         Thread _CopyTimeShiftFile;
-        _CopyTimeShiftFile = new Thread(ts);
+        _CopyTimeShiftFile = new Thread(TsCopier);
         _CopyTimeShiftFile.Priority = ThreadPriority.Lowest;
         _CopyTimeShiftFile.IsBackground = true;
-        _CopyTimeShiftFile.Start();
+        _CopyTimeShiftFile.Start(itemlist);
       }
       catch (Exception ex)
       {
@@ -40,7 +71,7 @@ namespace TsBufferExtractor
       }
     }
 
-    private void TsCopier(object itemlist, Recording rec, Schedule newSchedule)
+    private void TsCopier(object itemlist)
     {
       string[] bufferListObject;
       bufferListObject = new string[3];
@@ -48,6 +79,8 @@ namespace TsBufferExtractor
       bool foundHeader = false;
       bufferListObject = _itemlist[0];
       string targetTs = Path.GetDirectoryName(bufferListObject[2]) + "\\" + Path.GetFileNameWithoutExtension(bufferListObject[2]) + "_buffer.ts";
+      bool success = false;
+      _filename = bufferListObject[2];
 
       try
       {
@@ -117,6 +150,7 @@ namespace TsBufferExtractor
                   reader.Close();
                 }
               }
+              success = true;
             }
             catch (Exception ex)
             {
@@ -125,6 +159,16 @@ namespace TsBufferExtractor
           }
           writer.Flush();
           writer.Close();
+
+          if (success)
+          {
+            Thread mergefilesThread;
+            mergefilesThread = new Thread(mergeThread);
+            mergefilesThread.Priority = ThreadPriority.Lowest;
+            mergefilesThread.IsBackground = true;
+            mergefilesThread.Start(_filename);
+          }
+
           Log.Info("TsCopier: Done {0}", targetTs);
         }
       }
@@ -132,49 +176,48 @@ namespace TsBufferExtractor
       {
         Log.Error("TsCopier Exception: {0}", ex);
       }
+    }
 
+    private void mergeThread(object FileName)
+    {
+      string fName = (string)FileName;
+
+      while (!_startMerge)
+      {
+        //Log.Debug("TsCopier:MergeThread: waiting for the end of the recording of {0}", fName);
+        Thread.Sleep(1000);
+      }
+
+      Merge(fName);
+    }
+
+    private void Merge(string FileName)
+    {
       try
       {
-        Log.Debug("TsCopier: Creating Recording entry for {0}", targetTs);
+        Log.Info("MergeFiles: Start {0}", FileName);
 
-        RecordingDetail recDetail = new RecordingDetail(newSchedule, newSchedule.ReferencedChannel(), DateTime.Now, false);
+        string currentPath = System.Reflection.Assembly.GetCallingAssembly().Location;
 
-        recDetail.Recording = new Recording(recDetail.Schedule.IdChannel, recDetail.Schedule.IdSchedule, false,
-                                          rec.StartTime, DateTime.Now, rec.Title + " (from buffer)",
-                                          recDetail.Program.Description, recDetail.Program.Genre, targetTs,
-                                          recDetail.Schedule.KeepMethod,
-                                          recDetail.Schedule.KeepDate, 0, rec.IdServer, recDetail.Program.EpisodeName,
-                                          recDetail.Program.SeriesNum, recDetail.Program.EpisodeNum,
-                                          recDetail.Program.EpisodePart);
+        FileInfo currentPathInfo = new FileInfo(currentPath);
+        string bufferName = Path.GetDirectoryName(FileName) + "\\" + Path.GetFileNameWithoutExtension(FileName) + "_buffer.ts";
 
-        recDetail.Recording.Persist();
+        string cmd = string.Format(" -i \"concat:{0}|{1}\" -c copy \"{1}_merged.ts\"", bufferName, FileName);
+        string ffmpeg = currentPathInfo.DirectoryName.Remove(currentPathInfo.DirectoryName.Length - 8) + "\\" + "ffmpeg.exe";
 
-        IUser user = recDetail.User;
+        Log.Debug("MergeFiles: {0}{1}", ffmpeg, cmd);
 
-        TsBufferExtractor.Controller.Fire(this, new TvServerEventArgs(TvServerEventType.RecordingEnded, new VirtualCard(user), (User)user,
-                                                 recDetail.Schedule, recDetail.Recording));
-
-        MatroskaTagInfo info = new MatroskaTagInfo();
-        info.title = rec.Title + " (from buffer)";
-        info.description = recDetail.Program.Description;
-        info.genre = recDetail.Program.Genre;
-
-        info.channelName = recDetail.Schedule.ReferencedChannel().DisplayName;
-        info.episodeName = recDetail.Program.EpisodeName;
-        info.seriesNum = recDetail.Program.SeriesNum;
-        info.episodeNum = recDetail.Program.EpisodeNum;
-        info.episodePart = recDetail.Program.EpisodePart;
-        info.startTime = rec.StartTime;
-        info.endTime = DateTime.Now;
-
-        MatroskaTagHandler.WriteTag(System.IO.Path.ChangeExtension(targetTs, ".xml"), info);
-        Log.Info("TsCopier: Finished the job.");
+        Process process = new Process();
+        process.StartInfo.FileName = ffmpeg;
+        process.StartInfo.Arguments = cmd;
+        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        process.Start();
+        process.PriorityClass = ProcessPriorityClass.BelowNormal;
       }
       catch (Exception ex)
       {
-        Log.Error("TsCopier Exception: {0}", ex);
+        Log.Error("MergeFiles: Exception: {0}", ex);
       }
     }
-
   }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
@@ -104,7 +105,7 @@ namespace TsBufferExtractor
     /// </summary>
     public string Version
     {
-      get { return  "0.4.0.1"; }
+      get { return  "0.6.0.0"; }
     }
 
     public SetupTv.SectionSettings Setup
@@ -132,8 +133,11 @@ namespace TsBufferExtractor
       {
         try
         {
-          TvTimeShiftPositionWatcher setNewChannel = new TvTimeShiftPositionWatcher(tvEvent);
-          setNewChannel.SetNewChannel(tvEvent.Card.IdChannel);
+          Thread doWork = new Thread(delegate()
+            {
+              new TvTimeShiftPositionWatcher(tvEvent);
+            });
+          doWork.Start();
         }
         catch (Exception ex)
         {
