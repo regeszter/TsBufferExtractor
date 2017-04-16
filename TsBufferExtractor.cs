@@ -105,7 +105,7 @@ namespace TsBufferExtractor
     /// </summary>
     public string Version
     {
-      get { return  "0.6.0.0"; }
+      get { return  "0.6.0.1"; }
     }
 
     public SetupTv.SectionSettings Setup
