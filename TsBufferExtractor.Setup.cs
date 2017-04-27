@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using TvDatabase;
 using TvLibrary.Log;
@@ -16,7 +11,12 @@ namespace SetupTv.Sections
     private RadioButton radioButton2;
     private RadioButton radioButton3;
     private GroupBox groupBox1;
+    private GroupBox groupBox2;
+    private RadioButton radioButtonBufferAndRec;
+    private RadioButton radioButtonBoth;
+    private RadioButton radioButtonMerged;
     String tsBufferExtractorSetup;
+    String TsBufferExtractorFileSetup;
 
     #region constructors
 
@@ -31,6 +31,7 @@ namespace SetupTv.Sections
     {
       var layer = new TvBusinessLayer();
       tsBufferExtractorSetup = layer.GetSetting("TsBufferExtractorSetup", "A").Value;
+
       switch (tsBufferExtractorSetup)
       {
         case "A":
@@ -41,6 +42,21 @@ namespace SetupTv.Sections
           break;
         case "C":
           radioButton3.Checked = true;
+          break;
+      }
+
+      TsBufferExtractorFileSetup = layer.GetSetting("TsBufferExtractorFileSetup", "A").Value;
+
+      switch (TsBufferExtractorFileSetup)
+      {
+        case "A":
+          radioButtonBufferAndRec.Checked = true;
+        break;
+        case "B":
+          radioButtonMerged.Checked = true;
+        break;
+        case "C":
+          radioButtonBoth.Checked = true;
           break;
       }
     }
@@ -57,6 +73,19 @@ namespace SetupTv.Sections
         setting.Value = "B";
 
       if (radioButton3.Checked)
+        setting.Value = "C";
+
+      setting.Persist();
+
+      setting = layer.GetSetting("TsBufferExtractorFileSetup");
+
+      if (radioButtonBufferAndRec.Checked)
+        setting.Value = "A";
+
+      if (radioButtonMerged.Checked)
+        setting.Value = "B";
+
+      if (radioButtonBoth.Checked)
         setting.Value = "C";
 
       setting.Persist();
@@ -82,7 +111,12 @@ namespace SetupTv.Sections
       this.radioButton2 = new System.Windows.Forms.RadioButton();
       this.radioButton3 = new System.Windows.Forms.RadioButton();
       this.groupBox1 = new System.Windows.Forms.GroupBox();
+      this.groupBox2 = new System.Windows.Forms.GroupBox();
+      this.radioButtonBufferAndRec = new System.Windows.Forms.RadioButton();
+      this.radioButtonBoth = new System.Windows.Forms.RadioButton();
+      this.radioButtonMerged = new System.Windows.Forms.RadioButton();
       this.groupBox1.SuspendLayout();
+      this.groupBox2.SuspendLayout();
       this.SuspendLayout();
       // 
       // radioButton1
@@ -132,13 +166,62 @@ namespace SetupTv.Sections
       this.groupBox1.TabStop = false;
       this.groupBox1.Text = "Save the buffer";
       // 
+      // groupBox2
+      // 
+      this.groupBox2.Controls.Add(this.radioButtonBufferAndRec);
+      this.groupBox2.Controls.Add(this.radioButtonBoth);
+      this.groupBox2.Controls.Add(this.radioButtonMerged);
+      this.groupBox2.Location = new System.Drawing.Point(17, 148);
+      this.groupBox2.Name = "groupBox2";
+      this.groupBox2.Size = new System.Drawing.Size(441, 99);
+      this.groupBox2.TabIndex = 4;
+      this.groupBox2.TabStop = false;
+      this.groupBox2.Text = "Keep";
+      // 
+      // radioButtonBufferAndRec
+      // 
+      this.radioButtonBufferAndRec.AutoSize = true;
+      this.radioButtonBufferAndRec.Checked = true;
+      this.radioButtonBufferAndRec.Location = new System.Drawing.Point(18, 19);
+      this.radioButtonBufferAndRec.Name = "radioButtonBufferAndRec";
+      this.radioButtonBufferAndRec.Size = new System.Drawing.Size(205, 17);
+      this.radioButtonBufferAndRec.TabIndex = 0;
+      this.radioButtonBufferAndRec.TabStop = true;
+      this.radioButtonBufferAndRec.Text = "the saved buffer and the recorded file.";
+      this.radioButtonBufferAndRec.UseVisualStyleBackColor = true;
+      // 
+      // radioButtonBoth
+      // 
+      this.radioButtonBoth.AutoSize = true;
+      this.radioButtonBoth.Location = new System.Drawing.Point(18, 65);
+      this.radioButtonBoth.Name = "radioButtonBoth";
+      this.radioButtonBoth.Size = new System.Drawing.Size(87, 17);
+      this.radioButtonBoth.TabIndex = 2;
+      this.radioButtonBoth.TabStop = true;
+      this.radioButtonBoth.Text = "both of them.";
+      this.radioButtonBoth.UseVisualStyleBackColor = true;
+      // 
+      // radioButtonMerged
+      // 
+      this.radioButtonMerged.AutoSize = true;
+      this.radioButtonMerged.Location = new System.Drawing.Point(18, 42);
+      this.radioButtonMerged.Name = "radioButtonMerged";
+      this.radioButtonMerged.Size = new System.Drawing.Size(119, 17);
+      this.radioButtonMerged.TabIndex = 1;
+      this.radioButtonMerged.TabStop = true;
+      this.radioButtonMerged.Text = "only the merged file.";
+      this.radioButtonMerged.UseVisualStyleBackColor = true;
+      // 
       // TsBufferExtractorSetup
       // 
+      this.Controls.Add(this.groupBox2);
       this.Controls.Add(this.groupBox1);
       this.Name = "TsBufferExtractorSetup";
       this.Size = new System.Drawing.Size(475, 305);
       this.groupBox1.ResumeLayout(false);
       this.groupBox1.PerformLayout();
+      this.groupBox2.ResumeLayout(false);
+      this.groupBox2.PerformLayout();
       this.ResumeLayout(false);
 
     }

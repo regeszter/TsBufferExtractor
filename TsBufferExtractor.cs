@@ -4,12 +4,9 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using TvControl;
-using TvDatabase;
-using TvEngine.Interfaces;
 using TvLibrary.Interfaces;
 using TvLibrary.Log;
 using TvEngine.Events;
-using TvService;
 using TvEngine;
 using TsBufferExtractor.Interface;
 
@@ -105,7 +102,7 @@ namespace TsBufferExtractor
     /// </summary>
     public string Version
     {
-      get { return  "0.6.0.1"; }
+      get { return  "0.6.1.0"; }
     }
 
     public SetupTv.SectionSettings Setup

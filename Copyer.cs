@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.IO;
-using Gentle.Common;
-using TvControl;
 using TvDatabase;
-using TvEngine.Interfaces;
 using TvLibrary.Interfaces;
 using TvLibrary.Log;
 using TvEngine.Events;
-using TvService;
 
 
 namespace TsBufferExtractor
@@ -160,7 +155,10 @@ namespace TsBufferExtractor
           writer.Flush();
           writer.Close();
 
-          if (success)
+          var layer = new TvBusinessLayer();
+          String TsBufferExtractorFileSetup = layer.GetSetting("TsBufferExtractorFileSetup", "A").Value;
+
+          if (success && (TsBufferExtractorFileSetup =="B" || TsBufferExtractorFileSetup == "C"))
           {
             Thread mergefilesThread;
             mergefilesThread = new Thread(mergeThread);
@@ -213,6 +211,27 @@ namespace TsBufferExtractor
         process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
         process.Start();
         process.PriorityClass = ProcessPriorityClass.BelowNormal;
+        process.WaitForExit(1000 * 60 * 5);
+
+        var layer = new TvBusinessLayer();
+        String TsBufferExtractorFileSetup = layer.GetSetting("TsBufferExtractorFileSetup", "A").Value;
+
+        if (TsBufferExtractorFileSetup=="B")
+        {
+          Log.Debug("Remove: FileName {0}", FileName);
+
+          File.Delete(FileName);
+
+          Log.Debug("Remove: FileName {0}", bufferName);
+
+          File.Delete(bufferName);
+
+          String mergedName = FileName + "_merged.ts";
+
+          Log.Debug("Rename: {0} to {1}", mergedName, FileName);
+
+          File.Move(mergedName, FileName);
+        }
       }
       catch (Exception ex)
       {
