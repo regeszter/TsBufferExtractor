@@ -195,10 +195,10 @@ namespace SetupTv.Sections
       this.radioButtonBoth.AutoSize = true;
       this.radioButtonBoth.Location = new System.Drawing.Point(18, 65);
       this.radioButtonBoth.Name = "radioButtonBoth";
-      this.radioButtonBoth.Size = new System.Drawing.Size(87, 17);
+      this.radioButtonBoth.Size = new System.Drawing.Size(76, 17);
       this.radioButtonBoth.TabIndex = 2;
       this.radioButtonBoth.TabStop = true;
-      this.radioButtonBoth.Text = "both of them.";
+      this.radioButtonBoth.Text = "all of them.";
       this.radioButtonBoth.UseVisualStyleBackColor = true;
       // 
       // radioButtonMerged

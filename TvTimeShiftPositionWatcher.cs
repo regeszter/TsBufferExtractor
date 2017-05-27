@@ -275,9 +275,14 @@ namespace TsBufferExtractor
 
         try
         {
+          Schedule newSchedule = new Schedule(rec.IdChannel, rec.Title, rec.StartTime, DateTime.Now);
+          newSchedule.PreRecordInterval = 0;
+          newSchedule.PostRecordInterval = 0;
+          newSchedule.Persist();
+
           Copyer Copy = new Copyer();
 
-          Copy.CopyTimeShiftFile(itemlist);
+          Copy.CopyTimeShiftFile(itemlist, rec, newSchedule);
         }
         catch (Exception ex)
         {

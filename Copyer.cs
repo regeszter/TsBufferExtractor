@@ -7,6 +7,8 @@ using TvDatabase;
 using TvLibrary.Interfaces;
 using TvLibrary.Log;
 using TvEngine.Events;
+using TvControl;
+using TvService;
 
 
 namespace TsBufferExtractor
@@ -49,15 +51,20 @@ namespace TsBufferExtractor
 
     #endregion
     
-    public void CopyTimeShiftFile(object itemlist)
+    public void CopyTimeShiftFile(object itemlist, Recording rec, Schedule newSchedule)
     {
       try
       {
+        ThreadStart ts = delegate ()
+        {
+          TsCopier(itemlist, rec, newSchedule);
+        };
+
         Thread _CopyTimeShiftFile;
-        _CopyTimeShiftFile = new Thread(TsCopier);
+        _CopyTimeShiftFile = new Thread(ts);
         _CopyTimeShiftFile.Priority = ThreadPriority.Lowest;
         _CopyTimeShiftFile.IsBackground = true;
-        _CopyTimeShiftFile.Start(itemlist);
+        _CopyTimeShiftFile.Start();
       }
       catch (Exception ex)
       {
@@ -66,7 +73,7 @@ namespace TsBufferExtractor
       }
     }
 
-    private void TsCopier(object itemlist)
+    private void TsCopier(object itemlist, Recording rec, Schedule newSchedule)
     {
       string[] bufferListObject;
       bufferListObject = new string[3];
@@ -158,13 +165,103 @@ namespace TsBufferExtractor
           var layer = new TvBusinessLayer();
           String TsBufferExtractorFileSetup = layer.GetSetting("TsBufferExtractorFileSetup", "A").Value;
 
-          if (success && (TsBufferExtractorFileSetup =="B" || TsBufferExtractorFileSetup == "C"))
+          if (success && (TsBufferExtractorFileSetup == "B" || TsBufferExtractorFileSetup == "C"))
           {
             Thread mergefilesThread;
             mergefilesThread = new Thread(mergeThread);
             mergefilesThread.Priority = ThreadPriority.Lowest;
             mergefilesThread.IsBackground = true;
             mergefilesThread.Start(_filename);
+          }
+
+          if (success && (TsBufferExtractorFileSetup == "A" || TsBufferExtractorFileSetup == "C"))
+          {
+            try
+            {
+              Log.Debug("TsCopier: Creating Recording entry for {0}", targetTs);
+
+              RecordingDetail recDetail = new RecordingDetail(newSchedule, newSchedule.ReferencedChannel(), DateTime.Now, false);
+
+              recDetail.Recording = new Recording(recDetail.Schedule.IdChannel, recDetail.Schedule.IdSchedule, false,
+                                                rec.StartTime, DateTime.Now, rec.Title + " (from buffer)",
+                                                recDetail.Program.Description, recDetail.Program.Genre, targetTs,
+                                                recDetail.Schedule.KeepMethod,
+                                                recDetail.Schedule.KeepDate, 0, rec.IdServer, recDetail.Program.EpisodeName,
+                                                recDetail.Program.SeriesNum, recDetail.Program.EpisodeNum,
+                                                recDetail.Program.EpisodePart);
+
+              recDetail.Recording.Persist();
+
+              IUser user = recDetail.User;
+
+              TsBufferExtractor.Controller.Fire(this, new TvServerEventArgs(TvServerEventType.RecordingEnded, new VirtualCard(user), (User)user,
+                                                       recDetail.Schedule, recDetail.Recording));
+
+              MatroskaTagInfo info = new MatroskaTagInfo();
+              info.title = rec.Title + " (from buffer)";
+              info.description = recDetail.Program.Description;
+              info.genre = recDetail.Program.Genre;
+
+              info.channelName = recDetail.Schedule.ReferencedChannel().DisplayName;
+              info.episodeName = recDetail.Program.EpisodeName;
+              info.seriesNum = recDetail.Program.SeriesNum;
+              info.episodeNum = recDetail.Program.EpisodeNum;
+              info.episodePart = recDetail.Program.EpisodePart;
+              info.startTime = rec.StartTime;
+              info.endTime = DateTime.Now;
+
+              MatroskaTagHandler.WriteTag(Path.ChangeExtension(targetTs, ".xml"), info);
+            }
+            catch (Exception ex)
+            {
+              Log.Error("TsCopier Exception: {0}", ex);
+            }
+          }
+
+          if (success && TsBufferExtractorFileSetup == "C")
+          {
+            try
+            {
+              String mergedName = _filename + "_merged.ts";
+
+              Log.Debug("TsCopier: Creating Recording entry for {0}", mergedName);
+
+              RecordingDetail recDetail = new RecordingDetail(newSchedule, newSchedule.ReferencedChannel(), DateTime.Now, false);
+
+              recDetail.Recording = new Recording(recDetail.Schedule.IdChannel, recDetail.Schedule.IdSchedule, false,
+                                                rec.StartTime, DateTime.Now, rec.Title + " (merged)",
+                                                recDetail.Program.Description, recDetail.Program.Genre, mergedName,
+                                                recDetail.Schedule.KeepMethod,
+                                                recDetail.Schedule.KeepDate, 0, rec.IdServer, recDetail.Program.EpisodeName,
+                                                recDetail.Program.SeriesNum, recDetail.Program.EpisodeNum,
+                                                recDetail.Program.EpisodePart);
+
+              recDetail.Recording.Persist();
+
+              IUser user = recDetail.User;
+
+              TsBufferExtractor.Controller.Fire(this, new TvServerEventArgs(TvServerEventType.RecordingEnded, new VirtualCard(user), (User)user,
+                                                       recDetail.Schedule, recDetail.Recording));
+
+              MatroskaTagInfo info = new MatroskaTagInfo();
+              info.title = rec.Title + " (merged)";
+              info.description = recDetail.Program.Description;
+              info.genre = recDetail.Program.Genre;
+
+              info.channelName = recDetail.Schedule.ReferencedChannel().DisplayName;
+              info.episodeName = recDetail.Program.EpisodeName;
+              info.seriesNum = recDetail.Program.SeriesNum;
+              info.episodeNum = recDetail.Program.EpisodeNum;
+              info.episodePart = recDetail.Program.EpisodePart;
+              info.startTime = rec.StartTime;
+              info.endTime = DateTime.Now;
+
+              MatroskaTagHandler.WriteTag(Path.ChangeExtension(mergedName, ".xml"), info);
+            }
+            catch (Exception ex)
+            {
+              Log.Error("TsCopier Exception: {0}", ex);
+            }
           }
 
           Log.Info("TsCopier: Done {0}", targetTs);
